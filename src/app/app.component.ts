@@ -1,17 +1,20 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { timer } from 'rxjs';
-import { finalize, switchMap, takeWhile } from 'rxjs/operators';
+import { finalize } from 'rxjs/operators';
 
-import { FileService } from './services/file.service';
 import { KnowledgeBaseService } from './services/knowledge-base.service';
 import { ChunkService } from './services/chunk.service';
 import { UploadedDocument, KnowledgeBaseInfo, KnowledgeBaseStatus, DocumentProcessRequest, FinalizeChunksRequest } from './models';
 import { ProcessingSettingsModalComponent } from './processing-settings-modal/processing-settings-modal.component';
 import { ChunkFinalizeModalComponent } from './chunk-finalize-modal/chunk-finalize-modal.component';
+import { UploadWorkflowModalComponent } from './upload-workflow-modal/upload-workflow-modal.component';
+import { ChatComponent } from './chat/chat.component';
+import { InputBarComponent } from './input-bar/input-bar.component';
+import { ChatService } from './services/chat.service';
+import { ChatMessage } from './models';
 
 @Component({
   selector: 'app-root',
@@ -21,7 +24,10 @@ import { ChunkFinalizeModalComponent } from './chunk-finalize-modal/chunk-finali
     HttpClientModule,
     FormsModule,
     ProcessingSettingsModalComponent,
-    ChunkFinalizeModalComponent
+    ChunkFinalizeModalComponent,
+    UploadWorkflowModalComponent,
+    ChatComponent,
+    InputBarComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
@@ -51,11 +57,15 @@ export class AppComponent implements OnInit {
   showFinalizeModal: boolean = false;
   pendingFinalizeFileId: string | null = null;
   pendingFinalizeFileName: string = '';
+  showUploadWorkflowModal: boolean = false;
+  showRagPanel: boolean = false;
+  ragMessages: ChatMessage[] = [];
+  isRagTyping: boolean = false;
 
   constructor(
-    private fileService: FileService,
     private kbService: KnowledgeBaseService,
     private chunkService: ChunkService,
+    private chatService: ChatService,
     private sanitizer: DomSanitizer
   ) {}
 
@@ -210,117 +220,98 @@ export class AppComponent implements OnInit {
   }
 
   triggerFileUpload() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.bmp,.csv,.doc,.docx,.gif,.jpeg,.jpg,.log,.markdown,.md,.mdown,.mkd,.pdf,.png,.ppt,.pptx,.text,.tif,.tiff,.tsv,.txt,.webp,.xls,.xlsm,.xlsx';
-    input.onchange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (file) this.processFile(file);
-    };
-    input.click();
-  }
-
-  processFile(file: File) {
-    if (!this.fileService.validateFile(file)) {
-      this.showToast('File format not supported. Check supported formats.');
-      return;
-    }
     if (!this.activeKnowledgeBase) {
       this.showToast('Please select or create a knowledge base before uploading');
       return;
     }
+    this.showUploadWorkflowModal = true;
+  }
 
-    this.isProcessing = true;
-    this.processingMessage = 'Uploading Document...';
+  openRagPanel() {
+    if (!this.activeKnowledgeBase) {
+      this.showToast('Please select a knowledge base first');
+      return;
+    }
+    this.showRagPanel = true;
+    if (this.ragMessages.length === 0) {
+      this.ragMessages = [{
+        id: crypto.randomUUID(),
+        text: `RAG test is ready for ${this.activeKnowledgeBase.knowledge_base_name}. Ask a question to query this knowledge base.`,
+        sender: 'system',
+        timestamp: new Date()
+      }];
+    }
+  }
 
-    const activeKb = this.activeKnowledgeBase;
-    const previewUrlPromise = Promise.resolve(this.createDocumentPlaceholder(file.name));
+  closeRagPanel() {
+    this.showRagPanel = false;
+  }
 
-    previewUrlPromise.then(blobUrl => {
-      if (!blobUrl) {
-        this.uploadFileWithoutPreview(file);
-        return;
+  sendRagQuery(question: string) {
+    if (!this.activeKnowledgeBase) {
+      this.showToast('Please select a knowledge base first');
+      return;
+    }
+
+    const trimmed = question.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    this.ragMessages = [
+      ...this.ragMessages,
+      {
+        id: crypto.randomUUID(),
+        text: trimmed,
+        sender: 'user',
+        timestamp: new Date()
       }
+    ];
+    this.isRagTyping = true;
 
-      const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
-      this.uploadFileAndPrepareChunking(file, safeUrl, activeKb.knowledge_base_name);
-    }).catch(err => {
-      console.error('Error preparing preview:', err);
-      this.isProcessing = false;
-      this.showToast('Error preparing document preview');
-    });
-  }
-
-  uploadFileWithoutPreview(file: File) {
-    if (!this.activeKnowledgeBase) {
-      this.showToast('Please select or create a knowledge base before uploading');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.processingMessage = 'Uploading Document...';
-
-    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl('');
-    this.uploadFileAndPrepareChunking(file, safeUrl, this.activeKnowledgeBase.knowledge_base_name);
-  }
-
-  private uploadFileAndPrepareChunking(file: File, safeUrl: SafeResourceUrl, kbName: string) {
-    const newDoc: UploadedDocument = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      fileType: this.fileService.getFileCategory(file.name),
-      uploadTime: new Date(),
-      objectUrl: safeUrl,
-      content: '',
-      status: 'uploading'
-    };
-
-    this.documents = [newDoc, ...this.documents];
-
-    this.fileService.uploadFile(file, kbName).subscribe({
-      next: (uploadResponse) => {
-        newDoc.id = uploadResponse.file_id;
-        newDoc.fileSizeBytes = uploadResponse.file_size_bytes;
-        newDoc.status = 'processing';
-        this.processingMessage = 'Extracting document...';
-
-        this.waitForExtractionCompletion(uploadResponse.file_id)
-          .pipe(finalize(() => { this.isProcessing = false; }))
-          .subscribe({
-            next: (statusResponse) => {
-              if (statusResponse.status === 'completed') {
-                newDoc.status = 'uploaded';
-                this.pendingProcessFileId = uploadResponse.file_id;
-                this.pendingProcessFileName = uploadResponse.filename;
-                this.showProcessingSettingsModal = true;
-                this.showToast('Extraction complete. Configure chunk settings.');
-              } else {
-                newDoc.status = 'error';
-                this.showToast('Document extraction failed: ' + (statusResponse.message || 'Unknown error'));
-              }
-            },
-            error: (err: any) => {
-              console.error('Error checking extraction status:', err);
-              newDoc.status = 'error';
-              this.showToast('Error checking upload status: ' + (err.error?.detail || err.message));
-            }
-          });
+    this.chatService.queryKnowledgeBase(trimmed, this.activeKnowledgeBase.knowledge_base_id).subscribe({
+      next: (response) => {
+        this.ragMessages = [
+          ...this.ragMessages,
+          {
+            id: crypto.randomUUID(),
+            text: response.answer,
+            sender: 'ai',
+            timestamp: new Date(),
+            sources: response.sources
+          }
+        ];
+        this.isRagTyping = false;
       },
-      error: (err: any) => {
-        console.error('Error uploading file:', err);
-        newDoc.status = 'error';
-        this.isProcessing = false;
-        this.showToast('Error: ' + (err.error?.detail || err.message));
+      error: (err) => {
+        this.isRagTyping = false;
+        this.ragMessages = [
+          ...this.ragMessages,
+          {
+            id: crypto.randomUUID(),
+            text: 'Query failed: ' + (err.error?.detail || err.message || 'Unknown error'),
+            sender: 'system',
+            timestamp: new Date()
+          }
+        ];
       }
     });
   }
 
-  private waitForExtractionCompletion(fileId: string) {
-    return timer(0, 2000).pipe(
-      switchMap(() => this.fileService.getProcessingStatus(fileId)),
-      takeWhile(status => status.status !== 'completed' && status.status !== 'failed', true)
-    );
+  clearRagChat() {
+    this.ragMessages = [];
+  }
+
+  closeUploadWorkflowModal() {
+    this.showUploadWorkflowModal = false;
+  }
+
+  handleUploadWorkflowCompleted(fileId: string) {
+    this.showUploadWorkflowModal = false;
+    this.showToast(`Document finalized successfully (${fileId}).`);
+    if (this.activeKnowledgeBase) {
+      this.setActiveKnowledgeBase(this.activeKnowledgeBase.knowledge_base_id);
+    }
   }
 
   private mapBackendDocumentStatus(

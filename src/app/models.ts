@@ -70,6 +70,7 @@ export interface CreateChunksResponse {
 export interface FinalizeChunksRequest {
   batch_size?: number;
   chunk_ids?: string[] | null;
+  embedding_model?: string;
 }
 
 export interface FinalizeChunksResponse {

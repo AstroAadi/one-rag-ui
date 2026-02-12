@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { QueryResponse, SearchType, ConversationQueryRequest, QueryRequest, QueryHistoryItem } from '../models';
+import { QueryResponse, QueryHistoryItem } from '../models';
 import { SettingsService } from './settings.service';
 
 @Injectable({

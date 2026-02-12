@@ -17,9 +17,6 @@ export class SettingsService {
     chatModel: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
   };
 
-  // Search type state
-  private searchType: 'dense' | 'sparse' | 'hybrid' = 'hybrid';
-
   // Available models (can be expanded based on your AWS Bedrock access)
   public readonly availableChatModels = [
     { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet' },

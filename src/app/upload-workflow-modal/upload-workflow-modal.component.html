@@ -1,0 +1,104 @@
+<div class="modal-backdrop" (click)="handleBackdropClick($event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Upload Document Workflow</h2>
+      <button class="close-btn" (click)="onClose()" aria-label="Close modal">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="accordion-section">
+        <button class="section-toggle" (click)="toggleSection('upload')" type="button">
+          <span>1. Document Upload</span>
+          <span>{{ expandedSections.upload ? '−' : '+' }}</span>
+        </button>
+        <div class="section-content" *ngIf="expandedSections.upload">
+          <input id="fileInput" type="file" class="file-input"
+            accept=".bmp,.csv,.doc,.docx,.gif,.jpeg,.jpg,.log,.markdown,.md,.mdown,.mkd,.pdf,.png,.ppt,.pptx,.text,.tif,.tiff,.tsv,.txt,.webp,.xls,.xlsm,.xlsx"
+            (change)="onFileSelected($event)" />
+          <label for="fileInput" class="btn btn-secondary">Select File</label>
+
+          <div class="file-info" *ngIf="selectedFile">
+            <div><strong>Name:</strong> {{ selectedFile.name }}</div>
+            <div><strong>Size:</strong> {{ formatFileSize(selectedFile.size) }}</div>
+            <div><strong>Type:</strong> {{ selectedFile.type || 'Unknown' }}</div>
+          </div>
+
+          <button class="btn btn-primary" type="button" (click)="startUpload()" [disabled]="!selectedFile || uploadState === 'uploading'">
+            {{ uploadState === 'uploading' ? 'Uploading...' : 'Upload Document' }}
+          </button>
+
+          <div class="progress-container" *ngIf="uploadState === 'uploading' || uploadState === 'uploaded'">
+            <div class="progress-meta">
+              <span>{{ uploadMessage }}</span>
+              <span>{{ uploadProgress }}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-section">
+        <button class="section-toggle" (click)="toggleSection('chunk')" type="button">
+          <span>2. Chunk Settings</span>
+          <span>{{ expandedSections.chunk ? '−' : '+' }}</span>
+        </button>
+        <div class="section-content" *ngIf="expandedSections.chunk">
+          <div class="form-row">
+            <label>Chunking Strategy</label>
+            <select [(ngModel)]="chunkingSettings.chunking_strategy">
+              <option *ngFor="let strategy of chunkingStrategies" [value]="strategy.value">{{ strategy.label }}</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Chunk Size (tokens)</label>
+            <input type="number" min="100" max="2048" [(ngModel)]="chunkingSettings.target_chunk_tokens" />
+          </div>
+          <div class="form-row">
+            <label>Overlap Size (tokens)</label>
+            <input type="number" min="0" max="500" [(ngModel)]="chunkingSettings.chunk_overlap_tokens" />
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" [(ngModel)]="chunkingSettings.force_recreate" />
+            <span>Force recreate existing chunks</span>
+          </label>
+
+          <button class="btn btn-primary" type="button" (click)="createChunks()"
+            [disabled]="uploadState !== 'uploaded' || isChunking">
+            {{ isChunking ? 'Creating Chunks...' : 'Create Chunks' }}
+          </button>
+          <p class="status ok" *ngIf="isChunked">Chunking completed{{ chunkCount !== null ? ' (' + chunkCount + ' chunks)' : '' }}.</p>
+        </div>
+      </div>
+
+      <div class="accordion-section">
+        <button class="section-toggle" (click)="toggleSection('finalize')" type="button">
+          <span>3. Finalize Chunk</span>
+          <span>{{ expandedSections.finalize ? '−' : '+' }}</span>
+        </button>
+        <div class="section-content" *ngIf="expandedSections.finalize">
+          <div class="form-row">
+            <label>Embedding Model</label>
+            <select [(ngModel)]="selectedEmbeddingModel">
+              <option *ngFor="let model of embeddingModels" [value]="model.id">{{ model.name }}</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>Batch Size</label>
+            <input type="number" min="1" max="1000" [(ngModel)]="batchSize" />
+          </div>
+
+          <button class="btn btn-primary" type="button" (click)="finalizeChunks()"
+            [disabled]="!isChunked || isFinalizing">
+            {{ isFinalizing ? 'Finalizing...' : 'Finalize' }}
+          </button>
+          <p class="status ok" *ngIf="isFinalized">Finalization completed for {{ uploadedFilename || uploadedFileId }}.</p>
+        </div>
+      </div>
+
+      <p class="status error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    </div>
+  </div>
+</div>

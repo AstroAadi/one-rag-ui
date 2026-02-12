@@ -51,7 +51,7 @@ export class EditChunkModalComponent implements OnInit {
       this.editText,
       userId
     ).subscribe({
-      next: (response) => {
+      next: () => {
         this.isSaving = false;
         
         // Update the source object with new text

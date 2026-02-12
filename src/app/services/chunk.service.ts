@@ -49,6 +49,9 @@ export class ChunkService {
     if (request.batch_size !== undefined) {
       params.append('batch_size', request.batch_size.toString());
     }
+    if (request.embedding_model) {
+      params.append('embedding_model', request.embedding_model);
+    }
 
     return this.http.post<FinalizeChunksResponse>(
       `${this.API_URL}/chunks/finalize?${params.toString()}`,

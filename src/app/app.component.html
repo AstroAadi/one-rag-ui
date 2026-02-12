@@ -50,6 +50,7 @@
       <div class="details-header">
         <button class="btn-ghost" (click)="clearActiveKnowledgeBase()">← Back to Knowledge Bases</button>
         <div class="details-actions">
+          <button class="btn-primary" (click)="openRagPanel()">Test RAG</button>
           <button class="btn-secondary" (click)="triggerFileUpload()">Upload Document</button>
           <button class="btn-danger" (click)="handleDeleteKnowledgeBase(activeKnowledgeBase.knowledge_base_id)">Delete KB</button>
         </div>
@@ -136,6 +137,30 @@
 
   </main>
 
+  <div class="rag-panel-backdrop" *ngIf="showRagPanel" (click)="closeRagPanel()">
+    <section class="rag-panel" (click)="$event.stopPropagation()">
+      <div class="rag-panel-header">
+        <div>
+          <h3>Test RAG</h3>
+          <p>{{ activeKnowledgeBase?.knowledge_base_name }}</p>
+        </div>
+        <button class="btn-ghost" (click)="closeRagPanel()">✕</button>
+      </div>
+      <div class="rag-panel-body">
+        <app-chat
+          [messages]="ragMessages"
+          [isTyping]="isRagTyping"
+          (clearChat)="clearRagChat()">
+        </app-chat>
+      </div>
+      <div class="rag-panel-input">
+        <app-input-bar
+          (sendMessage)="sendRagQuery($event)">
+        </app-input-bar>
+      </div>
+    </section>
+  </div>
+
   <div class="modal-backdrop" *ngIf="showCreateKbForm">
     <div class="modal">
       <div class="modal-header">
@@ -159,6 +184,13 @@
     <div class="spinner"></div>
     <p>{{ processingMessage }}</p>
   </div>
+
+  <app-upload-workflow-modal
+    *ngIf="showUploadWorkflowModal"
+    [knowledgeBaseName]="activeKnowledgeBase?.knowledge_base_name || ''"
+    (closeModal)="closeUploadWorkflowModal()"
+    (workflowCompleted)="handleUploadWorkflowCompleted($event)">
+  </app-upload-workflow-modal>
 
   <app-processing-settings-modal
     *ngIf="showProcessingSettingsModal"
