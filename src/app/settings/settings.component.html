@@ -1,0 +1,201 @@
+<div class="settings-overlay" (click)="onOverlayClick($event)" [class.hidden]="isEmbedded">
+  <div class="settings-panel" (click)="$event.stopPropagation()">
+    
+    <!-- Header -->
+    <div class="settings-header">
+      <h2>⚙️ Settings</h2>
+      <button class="btn-close" (click)="onClose()" title="Close">
+        <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+      <ng-container *ngTemplateOutlet="settingsContentTemplate"></ng-container>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="settings-footer">
+      <button class="btn-secondary" (click)="onReset()">
+        Reset Settings
+      </button>
+      <button class="btn-primary" (click)="onClose()">
+        Done
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Embedded Settings (for sidebar) -->
+<div class="settings-embedded" *ngIf="isEmbedded">
+  <div class="settings-content-embedded">
+    <ng-container *ngTemplateOutlet="settingsContentTemplate"></ng-container>
+  </div>
+</div>
+
+<!-- Settings Content Template (shared between modal and embedded) -->
+<ng-template #settingsContentTemplate>
+      
+      <!-- Query Settings Section -->
+      <div class="settings-section">
+        <h3 class="section-title">Query Settings</h3>
+        
+        <div class="setting-item">
+          <label for="topK">
+            Top K Results
+            <span class="help-text">Number of document chunks to retrieve</span>
+          </label>
+          <div class="input-group">
+            <input 
+              type="range" 
+              id="topK" 
+              min="1" 
+              max="20" 
+              [(ngModel)]="localSettings.topK"
+              (change)="onTopKChange()"
+              class="slider"
+            />
+            <span class="value-display">{{ localSettings.topK }}</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label for="temperature">
+            Temperature
+            <span class="help-text">Controls randomness (0.0 = deterministic, 1.0 = creative)</span>
+          </label>
+          <div class="input-group">
+            <input 
+              type="range" 
+              id="temperature" 
+              min="0" 
+              max="1" 
+              step="0.1"
+              [(ngModel)]="temperature"
+              (change)="onTemperatureChange()"
+              class="slider"
+            />
+            <span class="value-display">{{ temperature.toFixed(1) }}</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label>
+            Search Type
+            <span class="help-text">Choose search strategy: dense (semantic), sparse (keyword), or hybrid (both)</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input 
+                type="radio" 
+                name="searchType" 
+                value="dense"
+                [(ngModel)]="searchType"
+                (change)="onSearchTypeChange()"
+              />
+              <span class="radio-text">Dense (Semantic Search)</span>
+            </label>
+            <label class="radio-label">
+              <input 
+                type="radio" 
+                name="searchType" 
+                value="sparse"
+                [(ngModel)]="searchType"
+                (change)="onSearchTypeChange()"
+              />
+              <span class="radio-text">Sparse (Keyword Search)</span>
+            </label>
+            <label class="radio-label">
+              <input 
+                type="radio" 
+                name="searchType" 
+                value="hybrid"
+                [(ngModel)]="searchType"
+                (change)="onSearchTypeChange()"
+              />
+              <span class="radio-text">Hybrid (Dense + Sparse with RRF)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Model Section -->
+      <div class="settings-section">
+        <h3 class="section-title">Chat Model</h3>
+        
+        <div class="setting-item">
+          <label for="chatModel">
+            LLM Model
+            <span class="help-text">Model used for generating responses</span>
+          </label>
+          <select 
+            id="chatModel" 
+            [(ngModel)]="localSettings.chatModel"
+            (change)="onChatModelChange()"
+            class="select-input"
+          >
+            <option *ngFor="let model of availableChatModels" [value]="model.id">
+              {{ model.name }}
+            </option>
+          </select>
+          
+          <div class="model-info" *ngIf="modelUpdateStatus">
+            <span [class.success]="modelUpdateStatus === 'success'" 
+                  [class.error]="modelUpdateStatus === 'error'">
+              {{ modelUpdateMessage }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Backend Info -->
+      <div class="settings-section info-section">
+        <h3 class="section-title">Backend Information</h3>
+        <div class="info-grid" *ngIf="modelInfo">
+          <div class="info-item">
+            <span class="info-label">Current Model:</span>
+            <span class="info-value">{{ getModelName(modelInfo.current_model_id) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Temperature:</span>
+            <span class="info-value">{{ modelInfo.temperature }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Max Tokens:</span>
+            <span class="info-value">{{ modelInfo.max_tokens }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger Zone: Knowledge Base Management -->
+      <div class="settings-section danger-section">
+        <h3 class="section-title danger-title">⚠️ Danger Zone</h3>
+        
+        <div class="setting-item">
+          <label>
+            Delete Knowledge Base
+            <span class="help-text">Deletes the KB and ALL documents</span>
+          </label>
+          <button 
+            class="btn-danger" 
+            (click)="onDeleteKnowledgeBase()"
+            [disabled]="resetKbStatus === 'loading'"
+          >
+            {{ resetKbStatus === 'loading' ? 'Deleting...' : 'Delete Knowledge Base' }}
+          </button>
+          
+          <div class="kb-reset-status" *ngIf="resetKbMessage">
+            <span [class.success]="resetKbStatus === 'success'" 
+                  [class.error]="resetKbStatus === 'error'"
+                  [class.loading]="resetKbStatus === 'loading'">
+              {{ resetKbMessage }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </ng-template>

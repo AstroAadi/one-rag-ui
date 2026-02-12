@@ -1,0 +1,82 @@
+<div class="modal-backdrop" (click)="handleBackdropClick($event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Processing Settings</h2>
+      <button class="close-btn" (click)="onClose()" aria-label="Close modal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <p class="file-name"><strong>File:</strong> {{ fileName }}</p>
+
+      <!-- Chunking Strategy -->
+      <div class="form-group">
+        <label for="strategy">Chunking Strategy</label>
+        <select 
+          id="strategy"
+          [(ngModel)]="settings.chunking_strategy"
+          class="form-control"
+        >
+          <option *ngFor="let strategy of chunkingStrategies" [value]="strategy.value">
+            {{ strategy.label }}
+          </option>
+        </select>
+        <small class="help-text">
+          Choose how documents are split into chunks for indexing.
+        </small>
+      </div>
+
+      <!-- Target Chunk Tokens -->
+      <div class="form-group">
+        <label for="targetTokens">
+          Target Chunk Size <span class="unit">(tokens)</span>
+        </label>
+        <div class="input-with-value">
+          <input 
+            id="targetTokens"
+            type="range" 
+            min="100" 
+            max="2048" 
+            [(ngModel)]="settings.target_chunk_tokens"
+            class="slider"
+          >
+          <span class="value-display">{{ settings.target_chunk_tokens }}</span>
+        </div>
+        <small class="help-text">Range: 100 - 2048 tokens</small>
+      </div>
+
+      <!-- Chunk Overlap Tokens -->
+      <div class="form-group">
+        <label for="overlapTokens">
+          Chunk Overlap <span class="unit">(tokens)</span>
+        </label>
+        <div class="input-with-value">
+          <input 
+            id="overlapTokens"
+            type="range" 
+            min="0" 
+            max="500" 
+            [(ngModel)]="settings.chunk_overlap_tokens"
+            class="slider"
+          >
+          <span class="value-display">{{ settings.chunk_overlap_tokens }}</span>
+        </div>
+        <small class="help-text">Range: 0 - 500 tokens</small>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="resetToDefaults()" [disabled]="isProcessing">
+        Reset to Defaults
+      </button>
+      <button class="btn btn-primary" (click)="onProcess()" [disabled]="isProcessing">
+        <span *ngIf="!isProcessing">Create Chunks</span>
+        <span *ngIf="isProcessing">Processing...</span>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,87 @@
+.input-container {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  padding: 12px 14px;
+  border-radius: 12px;
+  gap: 10px;
+  transition: all 0.3s ease;
+  border: 2px solid #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.input-container:focus-within {
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1), 0 4px 16px rgba(99, 102, 241, 0.15);
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #6366f1;
+  transform: scale(1.05);
+}
+
+.btn-attach svg {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 8px;
+  font-size: 0.95rem;
+  color: #1f2937;
+  outline: none;
+  min-width: 0;
+  font-weight: 500;
+}
+
+input::placeholder {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.btn-send {
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-send:hover:not(:disabled) {
+  background: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
+  color: white;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.btn-send:disabled {
+  background: #cbd5e1;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-send svg {
+  stroke: currentColor;
+  stroke-width: 2;
+}

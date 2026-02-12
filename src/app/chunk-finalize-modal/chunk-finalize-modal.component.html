@@ -1,0 +1,32 @@
+<div class="modal-backdrop" (click)="handleBackdropClick($event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Finalize Chunks</h2>
+      <button class="close-btn" (click)="onClose()" aria-label="Close modal">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="file-name"><strong>File:</strong> {{ fileName }}</p>
+      <p class="description">
+        Chunks are created. Finalize now to index chunks into vector DB.
+      </p>
+
+      <div class="form-group">
+        <label for="batchSize">Batch Size</label>
+        <input
+          id="batchSize"
+          type="number"
+          min="1"
+          max="1000"
+          [(ngModel)]="batchSize"
+          class="form-control"
+        />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="onClose()">Cancel</button>
+      <button class="btn btn-primary" (click)="onFinalize()">Finalize & Save</button>
+    </div>
+  </div>
+</div>

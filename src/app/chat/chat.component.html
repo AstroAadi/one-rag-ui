@@ -1,0 +1,58 @@
+<div class="chat-wrapper">
+  <button class="clear-chat-btn" (click)="onClearChat()" title="Clear Chat">
+    <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+</svg>
+  </button>
+  <div class="chat-container" #scrollContainer>
+  <div class="message-wrapper" *ngFor="let msg of messages">
+    
+    <div *ngIf="msg.sender === 'system'" class="system-message">
+      <small>{{ msg.text }}</small>
+    </div>
+
+    <div *ngIf="msg.sender !== 'system'" 
+         class="bubble" 
+         [ngClass]="{'user-bubble': msg.sender === 'user', 'ai-bubble': msg.sender === 'ai'}">
+      
+      <div class="bubble-content markdown-body">
+        <markdown [data]="msg.text"></markdown>
+      </div>
+      
+      <div *ngIf="msg.sources && msg.sources.length > 0" class="sources-section">
+        <div class="sources-header">Sources ({{ msg.sources.length }})</div>
+        <div class="source-item" *ngFor="let source of msg.sources; let i = index">
+          <div class="source-meta">
+            <span class="source-number">{{ i + 1 }}</span>
+            <span class="source-filename">{{ source.filename }}</span>
+            <span class="source-score">{{ (source.relevance_score * 100).toFixed(0) }}%</span>
+            <button class="btn-edit-source" (click)="openEditModal(source)" title="Edit this chunk">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                <path d="M12.146.354l3.5 3.5a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 1.999a.5.5 0 0 1-.65-.65l1.999-5a.5.5 0 0 1 .11-.168l10-10a.5.5 0 0 1 .708 0zM11.207 2.5L13.5 4.793 12.207 6 10 3.793 11.207 2.5zM1.406 11.604l.846-2.539 2.5 2.5-2.539.846.293.293L4.5 12.207l1.293-1.293.707.707L5.207 13l2.5 2.5-.846 2.539-.293-.293-1.293 1.293-1.293-1.293-.293.293.846-2.539-2.5-2.5 2.539-.846z"/>
+              </svg>
+              Edit
+            </button>
+          </div>
+          <div class="source-preview">{{ source.content }}</div>
+        </div>
+      </div>
+      
+      <div class="bubble-meta">{{ msg.timestamp | date:'shortTime' }}</div>
+    </div>
+  </div>
+
+  <div *ngIf="isTyping" class="message-wrapper left">
+    <div class="bubble ai-bubble typing">
+      <span class="typing-dots">
+        <span></span><span></span><span></span>
+      </span>
+    </div>
+  </div>
+</div>
+<app-edit-chunk-modal
+  *ngIf="selectedSourceForEdit"
+  [source]="selectedSourceForEdit"
+  (closeModal)="closeEditModal()"
+  (chunkUpdated)="onChunkUpdated($event)"
+></app-edit-chunk-modal>
