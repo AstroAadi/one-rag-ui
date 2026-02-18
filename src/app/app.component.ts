@@ -393,7 +393,9 @@ export class AppComponent implements OnInit {
             this.documents[updatedIndex] = {
               ...this.documents[updatedIndex],
               status: 'chunked',
-              chunksCreated: typeof response.chunk_count === 'number' ? response.chunk_count : this.documents[updatedIndex].chunksCreated
+              chunksCreated: typeof response.chunks_created === 'number'
+                ? response.chunks_created
+                : (typeof response.chunk_count === 'number' ? response.chunk_count : this.documents[updatedIndex].chunksCreated)
             };
           }
 

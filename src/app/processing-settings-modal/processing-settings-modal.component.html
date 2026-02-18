@@ -30,42 +30,100 @@
         </small>
       </div>
 
-      <!-- Target Chunk Tokens -->
-      <div class="form-group">
-        <label for="targetTokens">
-          Target Chunk Size <span class="unit">(tokens)</span>
+      <div class="form-group" *ngIf="usesFixedSettings()">
+        <label for="chunkSize">
+          Chunk Size <span class="unit">(tokens)</span>
         </label>
-        <div class="input-with-value">
-          <input 
-            id="targetTokens"
-            type="range" 
-            min="100" 
-            max="2048" 
-            [(ngModel)]="settings.target_chunk_tokens"
-            class="slider"
-          >
-          <span class="value-display">{{ settings.target_chunk_tokens }}</span>
-        </div>
+        <input
+          id="chunkSize"
+          type="number"
+          class="form-control"
+          min="100"
+          max="2048"
+          [(ngModel)]="settings.chunk_size"
+        />
         <small class="help-text">Range: 100 - 2048 tokens</small>
       </div>
 
-      <!-- Chunk Overlap Tokens -->
-      <div class="form-group">
-        <label for="overlapTokens">
+      <div class="form-group" *ngIf="usesFixedSettings()">
+        <label for="chunkOverlap">
           Chunk Overlap <span class="unit">(tokens)</span>
         </label>
-        <div class="input-with-value">
-          <input 
-            id="overlapTokens"
-            type="range" 
-            min="0" 
-            max="500" 
-            [(ngModel)]="settings.chunk_overlap_tokens"
-            class="slider"
-          >
-          <span class="value-display">{{ settings.chunk_overlap_tokens }}</span>
-        </div>
+        <input
+          id="chunkOverlap"
+          type="number"
+          class="form-control"
+          min="0"
+          max="500"
+          [(ngModel)]="settings.chunk_overlap"
+        />
         <small class="help-text">Range: 0 - 500 tokens</small>
+      </div>
+
+      <div class="form-group" *ngIf="isSemanticStrategy()">
+        <label for="maxBufferSize">Max Buffer Size</label>
+        <input
+          id="maxBufferSize"
+          type="number"
+          class="form-control"
+          min="1"
+          max="20"
+          [(ngModel)]="settings.max_buffer_size"
+        />
+        <small class="help-text">Range: 1 - 20 sentences</small>
+      </div>
+
+      <div class="form-group" *ngIf="isSemanticStrategy()">
+        <label for="breakpointThreshold">Breakpoint Threshold</label>
+        <input
+          id="breakpointThreshold"
+          type="number"
+          class="form-control"
+          min="0"
+          max="1"
+          step="0.01"
+          [(ngModel)]="settings.breakpoint_threshold"
+        />
+        <small class="help-text">Range: 0.00 - 1.00 (recommended 0.60 - 0.70)</small>
+      </div>
+
+      <div class="form-group" *ngIf="isHierarchicalStrategy()">
+        <label for="parentChunkSize">Parent Chunk Size <span class="unit">(tokens)</span></label>
+        <input
+          id="parentChunkSize"
+          type="number"
+          class="form-control"
+          min="500"
+          max="4096"
+          [(ngModel)]="settings.parent_chunk_size"
+        />
+        <small class="help-text">Range: 500 - 4096 tokens</small>
+      </div>
+
+      <div class="form-group" *ngIf="isHierarchicalStrategy()">
+        <label for="childChunkSize">Child Chunk Size <span class="unit">(tokens)</span></label>
+        <input
+          id="childChunkSize"
+          type="number"
+          class="form-control"
+          min="100"
+          max="1024"
+          [(ngModel)]="settings.child_chunk_size"
+        />
+        <small class="help-text">Range: 100 - 1024 tokens</small>
+      </div>
+
+      <div class="form-group" *ngIf="isHierarchicalStrategy()">
+        <label for="childChunkOverlap">Child Chunk Overlap <span class="unit">(tokens)</span></label>
+        <input
+          id="childChunkOverlap"
+          type="number"
+          class="form-control"
+          min="0"
+          max="200"
+          [(ngModel)]="settings.child_chunk_overlap"
+        />
+        <small class="help-text">Range: 0 - 200 tokens</small>
       </div>
     </div>
 
@@ -73,10 +131,26 @@
       <button class="btn btn-secondary" (click)="resetToDefaults()" [disabled]="isProcessing">
         Reset to Defaults
       </button>
+      <button class="btn btn-secondary" (click)="onPreview()" [disabled]="isProcessing || isPreviewLoading || !fileId">
+        <span *ngIf="!isPreviewLoading">Preview Chunks</span>
+        <span *ngIf="isPreviewLoading">Loading Preview...</span>
+      </button>
       <button class="btn btn-primary" (click)="onProcess()" [disabled]="isProcessing">
         <span *ngIf="!isProcessing">Create Chunks</span>
         <span *ngIf="isProcessing">Processing...</span>
       </button>
+    </div>
+
+    <div class="preview-list" *ngIf="previewChunksData.length > 0">
+      <h4>Preview (first {{ previewChunksData.length }} chunks)</h4>
+      <div class="preview-item" *ngFor="let chunk of previewChunksData; let i = index">
+        <div class="preview-meta">
+          Chunk {{ chunk.chunk_index ?? i + 1 }}
+          <span *ngIf="chunk.char_count !== undefined"> · {{ chunk.char_count }} chars</span>
+          <span *ngIf="chunk.page_number !== undefined"> · Page {{ chunk.page_number }}</span>
+        </div>
+        <p>{{ getPreviewText(chunk) }}</p>
+      </div>
     </div>
   </div>
 </div>

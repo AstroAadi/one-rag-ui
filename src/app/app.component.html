@@ -195,6 +195,7 @@
   <app-processing-settings-modal
     *ngIf="showProcessingSettingsModal"
     [fileName]="pendingProcessFileName"
+    [fileId]="pendingProcessFileId || ''"
     (closeModal)="closeProcessingSettings()"
     (processDocument)="handleProcessDocument($event)">
   </app-processing-settings-modal>

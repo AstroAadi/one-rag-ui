@@ -51,23 +51,58 @@
               <option *ngFor="let strategy of chunkingStrategies" [value]="strategy.value">{{ strategy.label }}</option>
             </select>
           </div>
-          <div class="form-row">
+          <div class="form-row" *ngIf="usesFixedSettings()">
             <label>Chunk Size (tokens)</label>
-            <input type="number" min="100" max="2048" [(ngModel)]="chunkingSettings.target_chunk_tokens" />
+            <input type="number" min="100" max="2048" [(ngModel)]="chunkingSettings.chunk_size" />
           </div>
-          <div class="form-row">
+          <div class="form-row" *ngIf="usesFixedSettings()">
             <label>Overlap Size (tokens)</label>
-            <input type="number" min="0" max="500" [(ngModel)]="chunkingSettings.chunk_overlap_tokens" />
+            <input type="number" min="0" max="500" [(ngModel)]="chunkingSettings.chunk_overlap" />
           </div>
-          <label class="checkbox-row">
-            <input type="checkbox" [(ngModel)]="chunkingSettings.force_recreate" />
-            <span>Force recreate existing chunks</span>
-          </label>
+          <div class="form-row" *ngIf="isSemanticStrategy()">
+            <label>Max Buffer Size</label>
+            <input type="number" min="1" max="20" [(ngModel)]="chunkingSettings.max_buffer_size" />
+          </div>
+          <div class="form-row" *ngIf="isSemanticStrategy()">
+            <label>Breakpoint Threshold</label>
+            <input type="number" min="0" max="1" step="0.01" [(ngModel)]="chunkingSettings.breakpoint_threshold" />
+          </div>
+          <div class="form-row" *ngIf="isHierarchicalStrategy()">
+            <label>Parent Chunk Size (tokens)</label>
+            <input type="number" min="500" max="4096" [(ngModel)]="chunkingSettings.parent_chunk_size" />
+          </div>
+          <div class="form-row" *ngIf="isHierarchicalStrategy()">
+            <label>Child Chunk Size (tokens)</label>
+            <input type="number" min="100" max="1024" [(ngModel)]="chunkingSettings.child_chunk_size" />
+          </div>
+          <div class="form-row" *ngIf="isHierarchicalStrategy()">
+            <label>Child Overlap Size (tokens)</label>
+            <input type="number" min="0" max="200" [(ngModel)]="chunkingSettings.child_chunk_overlap" />
+          </div>
 
-          <button class="btn btn-primary" type="button" (click)="createChunks()"
-            [disabled]="uploadState !== 'uploaded' || isChunking">
-            {{ isChunking ? 'Creating Chunks...' : 'Create Chunks' }}
-          </button>
+          <div class="action-row">
+            <button class="btn btn-secondary" type="button" (click)="previewChunks()"
+              [disabled]="uploadState !== 'uploaded' || isPreviewLoading || isChunking">
+              {{ isPreviewLoading ? 'Loading Preview...' : 'Preview Chunks' }}
+            </button>
+            <button class="btn btn-primary" type="button" (click)="createChunks()"
+              [disabled]="uploadState !== 'uploaded' || isChunking">
+              {{ isChunking ? 'Creating Chunks...' : 'Create Chunks' }}
+            </button>
+          </div>
+
+          <div class="preview-list" *ngIf="previewChunksData.length > 0">
+            <h4>Preview (first {{ previewChunksData.length }} chunks)</h4>
+            <div class="preview-item" *ngFor="let chunk of previewChunksData; let i = index">
+              <div class="preview-meta">
+                Chunk {{ chunk.chunk_index ?? i + 1 }}
+                <span *ngIf="chunk.char_count !== undefined"> · {{ chunk.char_count }} chars</span>
+                <span *ngIf="chunk.page_number !== undefined"> · Page {{ chunk.page_number }}</span>
+              </div>
+              <p>{{ getPreviewText(chunk) }}</p>
+            </div>
+          </div>
+
           <p class="status ok" *ngIf="isChunked">Chunking completed{{ chunkCount !== null ? ' (' + chunkCount + ' chunks)' : '' }}.</p>
         </div>
       </div>

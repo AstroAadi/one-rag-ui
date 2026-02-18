@@ -4,10 +4,12 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   ChunkDetailResponse,
+  ChunkingStrategy,
   CreateChunksResponse,
   DocumentProcessRequest,
   FinalizeChunksRequest,
   FinalizeChunksResponse,
+  PreviewChunksResponse,
   UpdateChunkRequest,
   UpdateChunkResponse
 } from '../models';
@@ -17,30 +19,68 @@ import {
 })
 export class ChunkService {
   private readonly API_URL = environment.apiUrl;
+  private readonly ROOT_API_URL = this.API_URL.endsWith('/api')
+    ? this.API_URL.slice(0, -4)
+    : this.API_URL;
 
   constructor(private http: HttpClient) {}
 
   createChunks(fileId: string, settings: DocumentProcessRequest): Observable<CreateChunksResponse> {
-    const params = new URLSearchParams();
-    params.append('file_id', fileId);
-
-    if (settings.chunking_strategy) {
-      params.append('chunking_strategy', settings.chunking_strategy);
-    }
-    if (settings.target_chunk_tokens !== undefined) {
-      params.append('target_chunk_tokens', settings.target_chunk_tokens.toString());
-    }
-    if (settings.chunk_overlap_tokens !== undefined) {
-      params.append('chunk_overlap_tokens', settings.chunk_overlap_tokens.toString());
-    }
-    if (settings.force_recreate !== undefined) {
-      params.append('force_recreate', String(settings.force_recreate));
-    }
-
+    const strategy = settings.chunking_strategy || 'default';
+    const payload = this.buildChunkingPayload(fileId, strategy, settings);
     return this.http.post<CreateChunksResponse>(
-      `${this.API_URL}/chunks/create?${params.toString()}`,
-      {}
+      `${this.ROOT_API_URL}/create`,
+      payload
     );
+  }
+
+  previewChunks(fileId: string, settings: DocumentProcessRequest): Observable<PreviewChunksResponse> {
+    const strategy = settings.chunking_strategy || 'default';
+    const payload = this.buildChunkingPayload(fileId, strategy, settings);
+    return this.http.post<PreviewChunksResponse>(
+      `${this.ROOT_API_URL}/preview`,
+      payload
+    );
+  }
+
+  private buildChunkingPayload(
+    fileId: string,
+    strategy: ChunkingStrategy,
+    settings: DocumentProcessRequest
+  ): Record<string, unknown> {
+    const basePayload: Record<string, unknown> = {
+      file_id: fileId,
+      chunking_strategy: strategy
+    };
+
+    if (strategy === 'default' || strategy === 'no_chunking') {
+      return basePayload;
+    }
+
+    if (strategy === 'fixed_size') {
+      return {
+        ...basePayload,
+        chunk_size: settings.chunk_size,
+        chunk_overlap: settings.chunk_overlap
+      };
+    }
+
+    if (strategy === 'semantic') {
+      return {
+        ...basePayload,
+        chunk_size: settings.chunk_size,
+        chunk_overlap: settings.chunk_overlap,
+        max_buffer_size: settings.max_buffer_size,
+        breakpoint_threshold: settings.breakpoint_threshold
+      };
+    }
+
+    return {
+      ...basePayload,
+      parent_chunk_size: settings.parent_chunk_size,
+      child_chunk_size: settings.child_chunk_size,
+      child_chunk_overlap: settings.child_chunk_overlap
+    };
   }
 
   finalizeChunks(fileId: string, request: FinalizeChunksRequest = {}): Observable<FinalizeChunksResponse> {
@@ -54,7 +94,7 @@ export class ChunkService {
     }
 
     return this.http.post<FinalizeChunksResponse>(
-      `${this.API_URL}/chunks/finalize?${params.toString()}`,
+      `${this.ROOT_API_URL}/finalize?${params.toString()}`,
       request.chunk_ids ?? null
     );
   }

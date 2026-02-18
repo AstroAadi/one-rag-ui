@@ -41,12 +41,16 @@ export interface FileUploadResponse {
 
 export interface DocumentProcessRequest {
   chunking_strategy?: ChunkingStrategy;
-  target_chunk_tokens?: number;
-  chunk_overlap_tokens?: number;
-  force_recreate?: boolean;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  max_buffer_size?: number;
+  breakpoint_threshold?: number;
+  parent_chunk_size?: number;
+  child_chunk_size?: number;
+  child_chunk_overlap?: number;
 }
 
-export type ChunkingStrategy = 'default' | 'fixed_size' | 'hierarchical' | 'semantic';
+export type ChunkingStrategy = 'default' | 'fixed_size' | 'hierarchical' | 'semantic' | 'no_chunking';
 
 export type ProcessingStatus = 'uploaded' | 'processing' | 'completed' | 'failed';
 
@@ -60,9 +64,41 @@ export interface ProcessingStatusResponse {
 
 export interface CreateChunksResponse {
   file_id?: string;
-  chunk_count?: number;
+  knowledge_base_id?: string;
+  chunks_created?: number;
   chunk_ids?: string[];
-  chunking_strategy?: ChunkingStrategy;
+  total_chunk_ids?: number;
+  chunking_strategy?: ChunkingStrategy | string;
+  chunking_time_seconds?: number;
+  status?: string;
+  parameters?: Record<string, unknown>;
+  message?: string;
+  // Backward compatibility with older backend shape
+  chunk_count?: number;
+  [key: string]: unknown;
+}
+
+export interface PreviewChunk {
+  chunk_id?: string;
+  chunk_index?: number;
+  text?: string;
+  content?: string;
+  char_count?: number;
+  token_count?: number;
+  page_number?: number;
+  chunk_type?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface PreviewChunksResponse {
+  file_id?: string;
+  chunking_strategy?: ChunkingStrategy | string;
+  preview_chunks?: PreviewChunk[];
+  chunks?: PreviewChunk[];
+  sample_chunks?: PreviewChunk[];
+  total_chunks?: number;
+  preview_count?: number;
   message?: string;
   [key: string]: unknown;
 }

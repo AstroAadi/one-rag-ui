@@ -6,7 +6,14 @@ import { switchMap, takeWhile } from 'rxjs/operators';
 import { ChunkService } from '../services/chunk.service';
 import { FileService } from '../services/file.service';
 import { SettingsService } from '../services/settings.service';
-import { ChunkingStrategy, DocumentProcessRequest, FinalizeChunksRequest, ProcessingStatusResponse } from '../models';
+import {
+  ChunkingStrategy,
+  DocumentProcessRequest,
+  FinalizeChunksRequest,
+  PreviewChunk,
+  PreviewChunksResponse,
+  ProcessingStatusResponse
+} from '../models';
 
 type SectionKey = 'upload' | 'chunk' | 'finalize';
 type UploadState = 'idle' | 'uploading' | 'uploaded' | 'failed';
@@ -40,6 +47,8 @@ export class UploadWorkflowModalComponent implements OnDestroy {
   isChunking: boolean = false;
   isChunked: boolean = false;
   chunkCount: number | null = null;
+  isPreviewLoading: boolean = false;
+  previewChunksData: PreviewChunk[] = [];
 
   isFinalizing: boolean = false;
   isFinalized: boolean = false;
@@ -48,15 +57,21 @@ export class UploadWorkflowModalComponent implements OnDestroy {
 
   chunkingSettings: DocumentProcessRequest = {
     chunking_strategy: 'fixed_size',
-    target_chunk_tokens: 512,
-    chunk_overlap_tokens: 50
+    chunk_size: 512,
+    chunk_overlap: 50,
+    max_buffer_size: 8,
+    breakpoint_threshold: 0.65,
+    parent_chunk_size: 1500,
+    child_chunk_size: 300,
+    child_chunk_overlap: 30
   };
 
   chunkingStrategies: Array<{ value: ChunkingStrategy; label: string }> = [
     { value: 'default', label: 'Default' },
     { value: 'fixed_size', label: 'Fixed Size' },
     { value: 'hierarchical', label: 'Hierarchical' },
-    { value: 'semantic', label: 'Semantic' }
+    { value: 'semantic', label: 'Semantic' },
+    { value: 'no_chunking', label: 'No Chunking' }
   ];
 
   embeddingModels: Array<{ id: string; name: string }> = [];
@@ -156,11 +171,35 @@ export class UploadWorkflowModalComponent implements OnDestroy {
       next: (response) => {
         this.isChunking = false;
         this.isChunked = true;
-        this.chunkCount = typeof response.chunk_count === 'number' ? response.chunk_count : null;
+        this.chunkCount = typeof response.chunks_created === 'number'
+          ? response.chunks_created
+          : (typeof response.chunk_count === 'number' ? response.chunk_count : null);
       },
       error: (err: unknown) => {
         this.isChunking = false;
         this.errorMessage = this.getErrorMessage(err, 'Chunk creation failed');
+      }
+    });
+  }
+
+  previewChunks(): void {
+    if (!this.uploadedFileId || this.uploadState !== 'uploaded') {
+      this.errorMessage = 'Upload and extraction must complete before previewing chunks.';
+      return;
+    }
+
+    this.errorMessage = null;
+    this.isPreviewLoading = true;
+    this.previewChunksData = [];
+
+    this.chunkService.previewChunks(this.uploadedFileId, this.chunkingSettings).subscribe({
+      next: (response: PreviewChunksResponse) => {
+        this.isPreviewLoading = false;
+        this.previewChunksData = this.extractPreviewChunks(response);
+      },
+      error: (err: unknown) => {
+        this.isPreviewLoading = false;
+        this.errorMessage = this.getErrorMessage(err, 'Chunk preview failed');
       }
     });
   }
@@ -270,6 +309,8 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     this.isChunking = false;
     this.isChunked = false;
     this.chunkCount = null;
+    this.isPreviewLoading = false;
+    this.previewChunksData = [];
     this.isFinalizing = false;
     this.isFinalized = false;
   }
@@ -287,5 +328,31 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     }
     const errorObj = err as { error?: { detail?: string }, message?: string };
     return errorObj.error?.detail || errorObj.message || fallback;
+  }
+
+  usesFixedSettings(): boolean {
+    return this.chunkingSettings.chunking_strategy === 'fixed_size' || this.chunkingSettings.chunking_strategy === 'semantic';
+  }
+
+  isSemanticStrategy(): boolean {
+    return this.chunkingSettings.chunking_strategy === 'semantic';
+  }
+
+  isHierarchicalStrategy(): boolean {
+    return this.chunkingSettings.chunking_strategy === 'hierarchical';
+  }
+
+  getPreviewText(chunk: PreviewChunk): string {
+    return chunk.text || chunk.content || '';
+  }
+
+  private extractPreviewChunks(response: PreviewChunksResponse): PreviewChunk[] {
+    const candidates = [
+      response.preview_chunks,
+      response.chunks,
+      response.sample_chunks
+    ];
+    const firstList = candidates.find((value) => Array.isArray(value));
+    return Array.isArray(firstList) ? firstList.slice(0, 5) : [];
   }
 }

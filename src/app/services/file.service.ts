@@ -92,11 +92,26 @@ export class FileService {
     if (settings?.chunking_strategy) {
       params.append('chunking_strategy', settings.chunking_strategy);
     }
-    if (settings?.target_chunk_tokens !== undefined) {
-      params.append('target_chunk_tokens', settings.target_chunk_tokens.toString());
+    if (settings?.chunk_size !== undefined) {
+      params.append('chunk_size', settings.chunk_size.toString());
     }
-    if (settings?.chunk_overlap_tokens !== undefined) {
-      params.append('chunk_overlap_tokens', settings.chunk_overlap_tokens.toString());
+    if (settings?.chunk_overlap !== undefined) {
+      params.append('chunk_overlap', settings.chunk_overlap.toString());
+    }
+    if (settings?.max_buffer_size !== undefined) {
+      params.append('max_buffer_size', settings.max_buffer_size.toString());
+    }
+    if (settings?.breakpoint_threshold !== undefined) {
+      params.append('breakpoint_threshold', settings.breakpoint_threshold.toString());
+    }
+    if (settings?.parent_chunk_size !== undefined) {
+      params.append('parent_chunk_size', settings.parent_chunk_size.toString());
+    }
+    if (settings?.child_chunk_size !== undefined) {
+      params.append('child_chunk_size', settings.child_chunk_size.toString());
+    }
+    if (settings?.child_chunk_overlap !== undefined) {
+      params.append('child_chunk_overlap', settings.child_chunk_overlap.toString());
     }
 
     const queryString = params.toString();
