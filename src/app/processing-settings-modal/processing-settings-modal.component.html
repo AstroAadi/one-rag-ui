@@ -1,4 +1,4 @@
-<div class="modal-backdrop" (click)="handleBackdropClick($event)">
+<div class="modal-backdrop" [class.inline]="inline" (click)="handleBackdropClick($event)">
   <div class="modal-content">
     <div class="modal-header">
       <h2>Processing Settings</h2>
@@ -141,15 +141,62 @@
       </button>
     </div>
 
-    <div class="preview-list" *ngIf="previewChunksData.length > 0">
-      <h4>Preview (first {{ previewChunksData.length }} chunks)</h4>
-      <div class="preview-item" *ngFor="let chunk of previewChunksData; let i = index">
-        <div class="preview-meta">
-          Chunk {{ chunk.chunk_index ?? i + 1 }}
-          <span *ngIf="chunk.char_count !== undefined"> · {{ chunk.char_count }} chars</span>
-          <span *ngIf="chunk.page_number !== undefined"> · Page {{ chunk.page_number }}</span>
+  </div>
+</div>
+
+<div class="preview-popup-backdrop" *ngIf="showPreviewPopup" (click)="handlePreviewBackdropClick($event)">
+  <div class="preview-popup">
+    <div class="preview-popup-header">
+      <h3>Chunk Preview</h3>
+      <button class="close-btn" type="button" (click)="closePreviewPopup()" aria-label="Close preview">✕</button>
+    </div>
+    <div class="preview-popup-body">
+      <p class="help-text" *ngIf="previewChunksData.length === 0 && previewParentChunks.length === 0">No preview chunks available.</p>
+
+      <div class="preview-tree" *ngIf="previewParentChunks.length > 0">
+        <div class="preview-section-title">Parent chunks</div>
+
+        <details class="preview-parent" *ngFor="let chunk of previewParentChunks; let i = index" [open]="i === 0">
+          <summary class="preview-summary">
+            <span class="preview-summary-main">
+              <span class="badge parent">parent</span>
+              Parent {{ chunk.chunk_index ?? i + 1 }}
+            </span>
+            <span class="preview-summary-meta">
+              <span *ngIf="getCharCount(chunk) !== null">{{ getCharCount(chunk) }} chars</span>
+              <span *ngIf="chunk.page_number !== undefined"> · Page {{ chunk.page_number }}</span>
+            </span>
+          </summary>
+
+          <div class="preview-parent-body">
+            <div class="preview-text">{{ getPreviewText(chunk) }}</div>
+
+            <div class="preview-children" *ngIf="chunk.children && chunk.children.length > 0">
+              <div class="preview-children-title">Children</div>
+              <div class="preview-child" *ngFor="let child of chunk.children; let c = index">
+                <div class="preview-meta">
+                  <span class="badge child">child</span>
+                  Child {{ child.chunk_index ?? c + 1 }}
+                  <span *ngIf="getCharCount(child) !== null"> · {{ getCharCount(child) }} chars</span>
+                  <span *ngIf="child.page_number !== undefined"> · Page {{ child.page_number }}</span>
+                </div>
+                <div class="preview-text">{{ getPreviewText(child) }}</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+      </div>
+
+      <div class="preview-list" *ngIf="previewChunksData.length > 0">
+        <div class="preview-item" *ngFor="let chunk of previewChunksData; let i = index">
+          <div class="preview-meta">
+            Chunk {{ chunk.chunk_index ?? i + 1 }}
+            <span *ngIf="getCharCount(chunk) !== null"> · {{ getCharCount(chunk) }} chars</span>
+            <span *ngIf="chunk.page_number !== undefined"> · Page {{ chunk.page_number }}</span>
+          </div>
+          <div class="preview-text">{{ getPreviewText(chunk) }}</div>
         </div>
-        <p>{{ getPreviewText(chunk) }}</p>
       </div>
     </div>
   </div>

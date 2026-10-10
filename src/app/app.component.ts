@@ -110,6 +110,8 @@ export class AppComponent implements OnInit {
   }
 
   setActiveKnowledgeBase(kbId: string) {
+    this.showRagPanel = false;
+    this.showUploadWorkflowModal = false;
     const kb = this.knowledgeBases.find(k => k.knowledge_base_id === kbId) || null;
     this.activeKnowledgeBase = kb;
     this.activeKnowledgeBaseStatus = null;
@@ -178,8 +180,9 @@ export class AppComponent implements OnInit {
 
   handleCreateKnowledgeBase(payload: { name: string; description?: string }) {
     const trimmed = payload.name.trim();
-    if (!trimmed) {
-      this.showToast('Knowledge base name is required');
+    const validationError = this.validateKnowledgeBaseName(trimmed);
+    if (validationError) {
+      this.showToast(validationError);
       return;
     }
 
@@ -224,6 +227,7 @@ export class AppComponent implements OnInit {
       this.showToast('Please select or create a knowledge base before uploading');
       return;
     }
+    this.showRagPanel = false;
     this.showUploadWorkflowModal = true;
   }
 
@@ -232,6 +236,8 @@ export class AppComponent implements OnInit {
       this.showToast('Please select a knowledge base first');
       return;
     }
+    this.showUploadWorkflowModal = false;
+    this.showProcessingSettingsModal = false;
     this.showRagPanel = true;
     if (this.ragMessages.length === 0) {
       this.ragMessages = [{
@@ -502,6 +508,8 @@ export class AppComponent implements OnInit {
   }
 
   clearActiveKnowledgeBase() {
+    this.showRagPanel = false;
+    this.showUploadWorkflowModal = false;
     this.activeKnowledgeBase = null;
     this.activeKnowledgeBaseStatus = null;
   }
@@ -509,5 +517,32 @@ export class AppComponent implements OnInit {
   showToast(msg: string) {
     this.toastMessage = msg;
     setTimeout(() => this.toastMessage = null, 3000);
+  }
+
+  private validateKnowledgeBaseName(name: string): string | null {
+    if (!name) {
+      return 'Knowledge base name is required';
+    }
+
+    if (!/^[A-Za-z0-9 _-]+$/.test(name)) {
+      return 'Use only letters, numbers, spaces, hyphens, and underscores in KB name.';
+    }
+
+    if (this.isDuplicateKnowledgeBaseName(name)) {
+      return 'A knowledge base with this name already exists.';
+    }
+
+    return null;
+  }
+
+  private isDuplicateKnowledgeBaseName(name: string): boolean {
+    const target = this.normalizeKnowledgeBaseName(name);
+    return this.knowledgeBases.some(
+      (kb) => this.normalizeKnowledgeBaseName(kb.knowledge_base_name) === target
+    );
+  }
+
+  private normalizeKnowledgeBaseName(name: string): string {
+    return name.trim().toLowerCase();
   }
 }

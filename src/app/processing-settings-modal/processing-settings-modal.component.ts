@@ -14,12 +14,15 @@ import { ChunkingStrategy, DocumentProcessRequest, PreviewChunk, PreviewChunksRe
 export class ProcessingSettingsModalComponent implements OnInit {
   @Input() fileName: string = '';
   @Input() fileId: string = '';
+  @Input() inline: boolean = false;
   @Output() closeModal = new EventEmitter<void>();
   @Output() processDocument = new EventEmitter<DocumentProcessRequest>();
 
   isProcessing: boolean = false;
   isPreviewLoading: boolean = false;
   previewChunksData: PreviewChunk[] = [];
+  previewParentChunks: PreviewChunk[] = [];
+  showPreviewPopup: boolean = false;
 
   settings: {
     chunking_strategy: ChunkingStrategy;
@@ -66,12 +69,16 @@ export class ProcessingSettingsModalComponent implements OnInit {
 
     this.isPreviewLoading = true;
     this.previewChunksData = [];
+    this.previewParentChunks = [];
     const payload = this.buildPayload();
 
     this.chunkService.previewChunks(this.fileId, payload).subscribe({
       next: (response: PreviewChunksResponse) => {
         this.isPreviewLoading = false;
-        this.previewChunksData = this.extractPreviewChunks(response);
+        const normalized = this.normalizePreviewResponse(response);
+        this.previewChunksData = normalized.flat;
+        this.previewParentChunks = normalized.parents;
+        this.showPreviewPopup = true;
       },
       error: () => {
         this.isPreviewLoading = false;
@@ -80,10 +87,14 @@ export class ProcessingSettingsModalComponent implements OnInit {
   }
 
   onClose(): void {
+    this.showPreviewPopup = false;
     this.closeModal.emit();
   }
 
   handleBackdropClick(event: MouseEvent): void {
+    if (this.inline) {
+      return;
+    }
     if (event.target === event.currentTarget) {
       this.onClose();
     }
@@ -101,6 +112,8 @@ export class ProcessingSettingsModalComponent implements OnInit {
       child_chunk_overlap: 30
     };
     this.previewChunksData = [];
+    this.previewParentChunks = [];
+    this.showPreviewPopup = false;
   }
 
   usesFixedSettings(): boolean {
@@ -116,7 +129,22 @@ export class ProcessingSettingsModalComponent implements OnInit {
   }
 
   getPreviewText(chunk: PreviewChunk): string {
-    return chunk.text || chunk.content || '';
+    return chunk.content_preview || chunk.text || chunk.content || '';
+  }
+
+  getCharCount(chunk: PreviewChunk): number | null {
+    const value = (chunk.char_count ?? chunk.full_char_count);
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  closePreviewPopup(): void {
+    this.showPreviewPopup = false;
+  }
+
+  handlePreviewBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closePreviewPopup();
+    }
   }
 
   private buildPayload(): DocumentProcessRequest {
@@ -140,9 +168,32 @@ export class ProcessingSettingsModalComponent implements OnInit {
     return payload;
   }
 
-  private extractPreviewChunks(response: PreviewChunksResponse): PreviewChunk[] {
+  private normalizePreviewResponse(response: PreviewChunksResponse): {
+    flat: PreviewChunk[];
+    parents: PreviewChunk[];
+  } {
     const candidates = [response.preview_chunks, response.chunks, response.sample_chunks];
-    const firstList = candidates.find((value) => Array.isArray(value));
-    return Array.isArray(firstList) ? firstList.slice(0, 5) : [];
+    const firstList = candidates.find((value) => Array.isArray(value)) as PreviewChunk[] | undefined;
+    const list = Array.isArray(firstList) ? firstList : [];
+
+    const isParentLike = (chunk: PreviewChunk): boolean => {
+      if (chunk.chunk_type === 'parent') return true;
+      if (Array.isArray(chunk.children) && chunk.children.length > 0) return true;
+      return false;
+    };
+
+    const parents = list.filter(isParentLike);
+
+    if (parents.length > 0) {
+      return {
+        flat: [],
+        parents: parents.slice(0, 5)
+      };
+    }
+
+    return {
+      flat: list.slice(0, 5),
+      parents: []
+    };
   }
 }

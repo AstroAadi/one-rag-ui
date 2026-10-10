@@ -27,6 +27,8 @@ type UploadState = 'idle' | 'uploading' | 'uploaded' | 'failed';
 })
 export class UploadWorkflowModalComponent implements OnDestroy {
   @Input() knowledgeBaseName: string = '';
+  @Input() knowledgeBaseId: string = '';
+  @Input() inline: boolean = false;
   @Output() closeModal = new EventEmitter<void>();
   @Output() workflowCompleted = new EventEmitter<string>();
 
@@ -49,6 +51,8 @@ export class UploadWorkflowModalComponent implements OnDestroy {
   chunkCount: number | null = null;
   isPreviewLoading: boolean = false;
   previewChunksData: PreviewChunk[] = [];
+  previewParentChunks: PreviewChunk[] = [];
+  showPreviewPopup: boolean = false;
 
   isFinalizing: boolean = false;
   isFinalized: boolean = false;
@@ -86,7 +90,7 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     private settingsService: SettingsService
   ) {
     this.embeddingModels = this.settingsService.availableEmbeddingModels;
-    this.selectedEmbeddingModel = this.embeddingModels[1]?.id || this.embeddingModels[0]?.id || '';
+    this.selectedEmbeddingModel = this.embeddingModels[0]?.id || this.embeddingModels[1]?.id || '';
   }
 
   ngOnDestroy(): void {
@@ -99,10 +103,14 @@ export class UploadWorkflowModalComponent implements OnDestroy {
 
   onClose(): void {
     this.stopStatusPolling();
+    this.showPreviewPopup = false;
     this.closeModal.emit();
   }
 
   handleBackdropClick(event: MouseEvent): void {
+    if (this.inline) {
+      return;
+    }
     if (event.target === event.currentTarget) {
       this.onClose();
     }
@@ -132,7 +140,7 @@ export class UploadWorkflowModalComponent implements OnDestroy {
       this.errorMessage = 'Select a file before uploading.';
       return;
     }
-    if (!this.knowledgeBaseName) {
+    if (!this.knowledgeBaseName && !this.knowledgeBaseId) {
       this.errorMessage = 'No active knowledge base selected.';
       return;
     }
@@ -142,7 +150,11 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     this.uploadProgress = 10;
     this.uploadMessage = 'Uploading document...';
 
-    this.fileService.uploadFile(this.selectedFile, this.knowledgeBaseName).subscribe({
+    this.fileService.uploadFile(
+      this.selectedFile,
+      this.knowledgeBaseName,
+      this.knowledgeBaseId
+    ).subscribe({
       next: (uploadResponse) => {
         this.uploadedFileId = uploadResponse.file_id;
         this.uploadedFilename = uploadResponse.filename;
@@ -191,11 +203,15 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     this.errorMessage = null;
     this.isPreviewLoading = true;
     this.previewChunksData = [];
+    this.previewParentChunks = [];
 
     this.chunkService.previewChunks(this.uploadedFileId, this.chunkingSettings).subscribe({
       next: (response: PreviewChunksResponse) => {
         this.isPreviewLoading = false;
-        this.previewChunksData = this.extractPreviewChunks(response);
+        const normalized = this.normalizePreviewResponse(response);
+        this.previewChunksData = normalized.flat;
+        this.previewParentChunks = normalized.parents;
+        this.showPreviewPopup = true;
       },
       error: (err: unknown) => {
         this.isPreviewLoading = false;
@@ -311,6 +327,8 @@ export class UploadWorkflowModalComponent implements OnDestroy {
     this.chunkCount = null;
     this.isPreviewLoading = false;
     this.previewChunksData = [];
+    this.previewParentChunks = [];
+    this.showPreviewPopup = false;
     this.isFinalizing = false;
     this.isFinalized = false;
   }
@@ -343,16 +361,55 @@ export class UploadWorkflowModalComponent implements OnDestroy {
   }
 
   getPreviewText(chunk: PreviewChunk): string {
-    return chunk.text || chunk.content || '';
+    return chunk.content_preview || chunk.text || chunk.content || '';
   }
 
-  private extractPreviewChunks(response: PreviewChunksResponse): PreviewChunk[] {
-    const candidates = [
-      response.preview_chunks,
-      response.chunks,
-      response.sample_chunks
-    ];
-    const firstList = candidates.find((value) => Array.isArray(value));
-    return Array.isArray(firstList) ? firstList.slice(0, 5) : [];
+  getCharCount(chunk: PreviewChunk): number | null {
+    const value = (chunk.char_count ?? chunk.full_char_count);
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  getChunkType(chunk: PreviewChunk): string {
+    const t = chunk.chunk_type;
+    return typeof t === 'string' && t.trim() ? t : (Array.isArray(chunk.children) ? 'parent' : 'chunk');
+  }
+
+  closePreviewPopup(): void {
+    this.showPreviewPopup = false;
+  }
+
+  handlePreviewBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closePreviewPopup();
+    }
+  }
+
+  private normalizePreviewResponse(response: PreviewChunksResponse): {
+    flat: PreviewChunk[];
+    parents: PreviewChunk[];
+  } {
+    const candidates = [response.preview_chunks, response.chunks, response.sample_chunks];
+    const firstList = candidates.find((value) => Array.isArray(value)) as PreviewChunk[] | undefined;
+    const list = Array.isArray(firstList) ? firstList : [];
+
+    const isParentLike = (chunk: PreviewChunk): boolean => {
+      if (chunk.chunk_type === 'parent') return true;
+      if (Array.isArray(chunk.children) && chunk.children.length > 0) return true;
+      return false;
+    };
+
+    const parents = list.filter(isParentLike);
+
+    if (parents.length > 0) {
+      return {
+        flat: [],
+        parents: parents.slice(0, 5)
+      };
+    }
+
+    return {
+      flat: list.slice(0, 5),
+      parents: []
+    };
   }
 }

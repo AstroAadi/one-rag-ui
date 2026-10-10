@@ -27,9 +27,9 @@ export class SettingsService {
   ];
 
   public readonly availableEmbeddingModels = [
+    { id: 'cohere.embed-english-v3', name: 'Cohere Embed English V3' },
     { id: 'amazon.titan-embed-text-v1', name: 'Titan Embed Text V1' },
     { id: 'amazon.titan-embed-text-v2:0', name: 'Titan Embed Text V2' },
-    { id: 'cohere.embed-english-v3', name: 'Cohere Embed English V3' },
     { id: 'cohere.embed-multilingual-v3', name: 'Cohere Embed Multilingual V3' }
   ];
 

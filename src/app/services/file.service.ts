@@ -1,8 +1,18 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { FileUploadResponse, DocumentProcessRequest, ProcessingStatusResponse, ChunkingStrategy, MarkdownFileInfo } from '../models';
+import {
+  APIKBRequest,
+  ChunkingStrategy,
+  CloudStorageKBRequest,
+  DatabaseKBAddDataRequest,
+  DatabaseKBRequest,
+  DocumentProcessRequest,
+  FileUploadResponse,
+  MarkdownFileInfo,
+  ProcessingStatusResponse
+} from '../models';
 
 @Injectable({
   providedIn: 'root'
@@ -28,6 +38,13 @@ export class FileService {
 
   // Document formats that need special handling (convert to PDF for preview)
   private readonly DOCUMENT_FORMATS = ['doc', 'docx', 'ppt', 'pptx'];
+  private readonly SUPPORTED_CHUNKING_STRATEGIES: ChunkingStrategy[] = [
+    'default',
+    'fixed_size',
+    'hierarchical',
+    'semantic',
+    'no_chunking'
+  ];
 
   constructor(private http: HttpClient) {}
 
@@ -68,56 +85,41 @@ export class FileService {
     return category === 'image' || category === 'pdf' || category === 'text';
   }
 
-  uploadFile(file: File, knowledgeBaseName: string): Observable<FileUploadResponse> {
+  uploadFile(
+    file: File,
+    knowledgeBaseName?: string,
+    knowledgeBaseId?: string
+  ): Observable<FileUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('knowledge_base_name', knowledgeBaseName);
+
+    // Keep both keys for backward/forward compatibility across backend versions.
+    if (knowledgeBaseName && knowledgeBaseName.trim()) {
+      formData.append('knowledge_base_name', knowledgeBaseName.trim());
+    }
+    if (knowledgeBaseId && knowledgeBaseId.trim()) {
+      formData.append('knowledge_base_id', knowledgeBaseId.trim());
+    }
     
     return this.http.post<FileUploadResponse>(
-      `${this.API_URL}/upload/`,
+      `${this.API_URL}/upload/file-upload`,
       formData
     );
   }
 
   /**
-   * Process and index a document (asynchronous - returns task_id)
-   * Process runs in background and returns a task_id for status tracking
+   * This endpoint was removed from the API.
+   * Use ChunkService.createChunks() and ChunkService.finalizeChunks() instead.
    */
   processDocument(
-    fileId: string, 
+    fileId: string,
     settings?: DocumentProcessRequest
   ): Observable<{ task_id: string }> {
-    const params = new URLSearchParams();
-    
-    if (settings?.chunking_strategy) {
-      params.append('chunking_strategy', settings.chunking_strategy);
-    }
-    if (settings?.chunk_size !== undefined) {
-      params.append('chunk_size', settings.chunk_size.toString());
-    }
-    if (settings?.chunk_overlap !== undefined) {
-      params.append('chunk_overlap', settings.chunk_overlap.toString());
-    }
-    if (settings?.max_buffer_size !== undefined) {
-      params.append('max_buffer_size', settings.max_buffer_size.toString());
-    }
-    if (settings?.breakpoint_threshold !== undefined) {
-      params.append('breakpoint_threshold', settings.breakpoint_threshold.toString());
-    }
-    if (settings?.parent_chunk_size !== undefined) {
-      params.append('parent_chunk_size', settings.parent_chunk_size.toString());
-    }
-    if (settings?.child_chunk_size !== undefined) {
-      params.append('child_chunk_size', settings.child_chunk_size.toString());
-    }
-    if (settings?.child_chunk_overlap !== undefined) {
-      params.append('child_chunk_overlap', settings.child_chunk_overlap.toString());
-    }
-
-    const queryString = params.toString();
-    const url = `${this.API_URL}/upload/process/${fileId}${queryString ? '?' + queryString : ''}`;
-    
-    return this.http.post<{ task_id: string }>(url, {});
+    void fileId;
+    void settings;
+    return throwError(() => new Error(
+      'processDocument endpoint removed. Use ChunkService.createChunks() and ChunkService.finalizeChunks().'
+    ));
   }
 
   /**
@@ -133,8 +135,56 @@ export class FileService {
    * Get available chunking strategies
    */
   getChunkingStrategies(): Observable<ChunkingStrategy[]> {
-    return this.http.get<ChunkingStrategy[]>(
-      `${this.API_URL}/upload/chunking-strategies`
+    return of(this.SUPPORTED_CHUNKING_STRATEGIES);
+  }
+
+  /**
+   * Create a KB from cloud storage source (S3/Azure/GCS)
+   */
+  createCloudStorageKB(request: CloudStorageKBRequest): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(
+      `${this.API_URL}/upload/cloud-storage`,
+      request
+    );
+  }
+
+  /**
+   * Create a KB from database source
+   */
+  createDatabaseKB(request: DatabaseKBRequest): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(
+      `${this.API_URL}/upload/database`,
+      request
+    );
+  }
+
+  /**
+   * Manually sync an existing database KB
+   */
+  syncDatabaseKB(kbId: string): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(
+      `${this.API_URL}/upload/database/sync/${kbId}`,
+      {}
+    );
+  }
+
+  /**
+   * Append query results to an existing database KB
+   */
+  addDataToDatabaseKB(kbId: string, request: DatabaseKBAddDataRequest): Observable<Record<string, unknown>> {
+    return this.http.put<Record<string, unknown>>(
+      `${this.API_URL}/upload/database/${kbId}`,
+      request
+    );
+  }
+
+  /**
+   * Create a KB from API endpoint source
+   */
+  createApiEndpointKB(request: APIKBRequest): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(
+      `${this.API_URL}/upload/api-endpoint`,
+      request
     );
   }
 

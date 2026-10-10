@@ -50,7 +50,8 @@
       <div class="details-header">
         <button class="btn-ghost" (click)="clearActiveKnowledgeBase()">← Back to Knowledge Bases</button>
         <div class="details-actions">
-          <button class="btn-primary" (click)="openRagPanel()">Test RAG</button>
+          <button class="btn-primary" *ngIf="!showRagPanel" (click)="openRagPanel()">Test RAG</button>
+          <button class="btn-secondary" *ngIf="showRagPanel" (click)="closeRagPanel()">Back to Documents</button>
           <button class="btn-secondary" (click)="triggerFileUpload()">Upload Document</button>
           <button class="btn-danger" (click)="handleDeleteKnowledgeBase(activeKnowledgeBase.knowledge_base_id)">Delete KB</button>
         </div>
@@ -58,7 +59,47 @@
 
       <div class="details-grid">
         <div class="details-main">
-          <div class="details-card">
+          <div class="details-card rag-inline-card" *ngIf="showRagPanel">
+            <div class="rag-inline-header">
+              <div>
+                <h3>Test RAG</h3>
+                <p>{{ activeKnowledgeBase.knowledge_base_name }}</p>
+              </div>
+              <button class="btn-ghost" (click)="closeRagPanel()">✕</button>
+            </div>
+            <div class="rag-inline-body">
+              <app-chat
+                [messages]="ragMessages"
+                [isTyping]="isRagTyping"
+                (clearChat)="clearRagChat()">
+              </app-chat>
+            </div>
+            <div class="rag-inline-input">
+              <app-input-bar
+                (sendMessage)="sendRagQuery($event)">
+              </app-input-bar>
+            </div>
+          </div>
+
+          <app-upload-workflow-modal
+            *ngIf="!showRagPanel && showUploadWorkflowModal"
+            [inline]="true"
+            [knowledgeBaseName]="activeKnowledgeBase.knowledge_base_name"
+            [knowledgeBaseId]="activeKnowledgeBase.knowledge_base_id"
+            (closeModal)="closeUploadWorkflowModal()"
+            (workflowCompleted)="handleUploadWorkflowCompleted($event)">
+          </app-upload-workflow-modal>
+
+          <app-processing-settings-modal
+            *ngIf="!showRagPanel && !showUploadWorkflowModal && showProcessingSettingsModal"
+            [inline]="true"
+            [fileName]="pendingProcessFileName"
+            [fileId]="pendingProcessFileId || ''"
+            (closeModal)="closeProcessingSettings()"
+            (processDocument)="handleProcessDocument($event)">
+          </app-processing-settings-modal>
+
+          <div class="details-card" *ngIf="!showRagPanel && !showUploadWorkflowModal && !showProcessingSettingsModal">
             <div class="details-title">Documents</div>
             <div class="loading-text" *ngIf="kbDetailsLoading">Loading documents...</div>
             <div class="table-wrapper" *ngIf="documents.length > 0">
@@ -68,17 +109,15 @@
                     <th>Document Name</th>
                     <th>Chunking Strategy</th>
                     <th>Size</th>
-                    <th>Pages</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr *ngFor="let doc of documents">
-                    <td>{{ doc.name }}</td>
+                    <td class="doc-name-cell" [title]="doc.name">{{ doc.name }}</td>
                     <td>{{ doc.chunkingStrategy || '—' }}</td>
                     <td>{{ doc.fileSizeBytes || 0 }}</td>
-                    <td>{{ doc.totalPages || 0 }}</td>
                     <td>{{ doc.status }}</td>
                     <td>
                       <button class="link-btn" *ngIf="doc.status === 'uploaded'" (click)="openProcessingSettingsForDoc(doc)">Chunk Settings</button>
@@ -137,30 +176,6 @@
 
   </main>
 
-  <div class="rag-panel-backdrop" *ngIf="showRagPanel" (click)="closeRagPanel()">
-    <section class="rag-panel" (click)="$event.stopPropagation()">
-      <div class="rag-panel-header">
-        <div>
-          <h3>Test RAG</h3>
-          <p>{{ activeKnowledgeBase?.knowledge_base_name }}</p>
-        </div>
-        <button class="btn-ghost" (click)="closeRagPanel()">✕</button>
-      </div>
-      <div class="rag-panel-body">
-        <app-chat
-          [messages]="ragMessages"
-          [isTyping]="isRagTyping"
-          (clearChat)="clearRagChat()">
-        </app-chat>
-      </div>
-      <div class="rag-panel-input">
-        <app-input-bar
-          (sendMessage)="sendRagQuery($event)">
-        </app-input-bar>
-      </div>
-    </section>
-  </div>
-
   <div class="modal-backdrop" *ngIf="showCreateKbForm">
     <div class="modal">
       <div class="modal-header">
@@ -184,21 +199,6 @@
     <div class="spinner"></div>
     <p>{{ processingMessage }}</p>
   </div>
-
-  <app-upload-workflow-modal
-    *ngIf="showUploadWorkflowModal"
-    [knowledgeBaseName]="activeKnowledgeBase?.knowledge_base_name || ''"
-    (closeModal)="closeUploadWorkflowModal()"
-    (workflowCompleted)="handleUploadWorkflowCompleted($event)">
-  </app-upload-workflow-modal>
-
-  <app-processing-settings-modal
-    *ngIf="showProcessingSettingsModal"
-    [fileName]="pendingProcessFileName"
-    [fileId]="pendingProcessFileId || ''"
-    (closeModal)="closeProcessingSettings()"
-    (processDocument)="handleProcessDocument($event)">
-  </app-processing-settings-modal>
 
   <app-chunk-finalize-modal
     *ngIf="showFinalizeModal"

@@ -260,6 +260,9 @@
   text-align: left;
   padding: 0.75rem 0.5rem;
   border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .docs-table thead th {
@@ -289,6 +292,16 @@
 
 .details-table .col-value {
   width: auto;
+}
+
+.doc-name-cell {
+  width: 34%;
+  min-width: 220px;
+}
+
+.docs-table th:last-child,
+.docs-table td:last-child {
+  white-space: nowrap;
 }
 
 .loading-text {
@@ -424,52 +437,40 @@
   box-shadow: var(--shadow);
 }
 
-.rag-panel-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.35);
-  z-index: 95;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.rag-panel {
-  width: min(640px, 100vw);
-  height: 100vh;
-  background: #fff;
-  border-left: 1px solid var(--border);
-  box-shadow: -12px 0 30px rgba(15, 23, 42, 0.15);
+.rag-inline-card {
+  height: calc(100vh - 210px);
+  min-height: 560px;
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
 
-.rag-panel-header {
+.rag-inline-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.2rem;
+  padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--border);
 }
 
-.rag-panel-header h3 {
+.rag-inline-header h3 {
   margin: 0;
   font-size: 1.1rem;
 }
 
-.rag-panel-header p {
+.rag-inline-header p {
   margin: 0.2rem 0 0;
   color: var(--muted);
   font-size: 0.85rem;
 }
 
-.rag-panel-body {
+.rag-inline-body {
   min-height: 0;
-  padding: 0.9rem 1rem 0.5rem;
+  padding: 0.9rem 0 0.5rem;
 }
 
-.rag-panel-input {
+.rag-inline-input {
   border-top: 1px solid var(--border);
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 0 0;
 }
 
 @media (max-width: 900px) {
@@ -487,7 +488,8 @@
     position: static;
   }
 
-  .rag-panel {
-    width: 100vw;
+  .rag-inline-card {
+    min-height: 520px;
+    height: calc(100vh - 250px);
   }
 }

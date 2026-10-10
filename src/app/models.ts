@@ -39,6 +39,86 @@ export interface FileUploadResponse {
   message: string;
 }
 
+export type CloudStorageProvider = 'aws_s3' | 'azure_blob' | 'gcp_storage' | string;
+
+export interface CloudStorageConfig {
+  provider: CloudStorageProvider;
+  bucket_name?: string;
+  path_prefix?: string;
+  aws_access_key_id?: string;
+  aws_secret_access_key?: string;
+  aws_region?: string;
+  account_name?: string;
+  account_key?: string;
+  container_name?: string;
+  connection_string?: string;
+  project_id?: string;
+  credentials_json?: string;
+  [key: string]: unknown;
+}
+
+export interface CloudStorageKBRequest {
+  knowledge_base_name: string;
+  description?: string | null;
+  cloud_storage_config: CloudStorageConfig;
+  auto_sync_enabled?: boolean;
+  sync_interval_hours?: number;
+}
+
+export type DatabaseType = 'postgresql' | 'mysql' | 'mssql' | 'sqlite' | 'oracle' | string;
+
+export interface DatabaseConfig {
+  db_type: DatabaseType;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  database_name: string;
+  query: string;
+  ssl_enabled?: boolean;
+  connection_timeout?: number;
+  [key: string]: unknown;
+}
+
+export interface DatabaseKBRequest {
+  knowledge_base_name: string;
+  description?: string | null;
+  database_config: DatabaseConfig;
+  auto_sync_enabled?: boolean;
+  sync_interval_hours?: number;
+}
+
+export interface DatabaseKBAddDataRequest {
+  database_config: DatabaseConfig;
+  query_label?: string | null;
+}
+
+export type ApiAuthType = 'none' | 'bearer' | 'basic' | 'api_key' | string;
+export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | string;
+
+export interface APIConfig {
+  endpoint_url: string;
+  method?: ApiMethod;
+  auth_type?: ApiAuthType;
+  bearer_token?: string;
+  username?: string;
+  password?: string;
+  api_key?: string;
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+  timeout?: number;
+  body?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface APIKBRequest {
+  knowledge_base_name: string;
+  description?: string | null;
+  api_config: APIConfig;
+  auto_sync_enabled?: boolean;
+  sync_interval_hours?: number;
+}
+
 export interface DocumentProcessRequest {
   chunking_strategy?: ChunkingStrategy;
   chunk_size?: number;
@@ -83,10 +163,16 @@ export interface PreviewChunk {
   chunk_index?: number;
   text?: string;
   content?: string;
+  // Newer preview response shape
+  content_preview?: string;
   char_count?: number;
+  full_char_count?: number;
   token_count?: number;
   page_number?: number;
   chunk_type?: string;
+  parent_chunk_id?: string;
+  warning?: string;
+  children?: PreviewChunk[];
   metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
